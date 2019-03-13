@@ -33,7 +33,7 @@ import thrift.transport.TTransport
 apilevel = '2.0'
 threadsafety = 2  # Threads may share the module and connections.
 paramstyle = 'pyformat'  # Python extended format codes, e.g. ...WHERE name=%(name)s
-
+WINDOWS = sys.platform == 'win32' or sys.platform == 'cygwin'
 _logger = logging.getLogger(__name__)
 
 _TIMESTAMP_PATTERN = re.compile(r'(\d+-\d+-\d+ \d+:\d+:\d+(\.\d{,6})?)')
@@ -149,7 +149,6 @@ class Connection(object):
                 self._transport = thrift.transport.TTransport.TBufferedTransport(socket)
             elif auth in ('LDAP', 'KERBEROS', 'NONE', 'CUSTOM'):
                 # Defer import so package dependency is optional
-                import sasl
                 import thrift_sasl
 
                 if auth == 'KERBEROS':
@@ -161,18 +160,29 @@ class Connection(object):
                         # Password doesn't matter in NONE mode, just needs to be nonempty.
                         password = 'x'
 
-                def sasl_factory():
-                    sasl_client = sasl.Client()
-                    sasl_client.setAttr('host', host)
-                    if sasl_auth == 'GSSAPI':
-                        sasl_client.setAttr('service', kerberos_service_name)
-                    elif sasl_auth == 'PLAIN':
-                        sasl_client.setAttr('username', username)
-                        sasl_client.setAttr('password', password)
-                    else:
-                        raise AssertionError
-                    sasl_client.init()
-                    return sasl_client
+                if not WINDOWS:
+                    import sasl
+
+                    def sasl_factory():
+                        sasl_client = sasl.Client()
+                        sasl_client.setAttr('host', host)
+                        if sasl_auth == 'GSSAPI':
+                            sasl_client.setAttr('service', kerberos_service_name)
+                        elif sasl_auth == 'PLAIN':
+                            sasl_client.setAttr('username', username)
+                            sasl_client.setAttr('password', password)
+                        else:
+                            raise AssertionError
+                        sasl_client.init()
+                        return sasl_client
+                else:
+                    from pyhive.sasl_compat import PureSASLClient
+
+                    def sasl_factory():
+                        return PureSASLClient(host, username=username, password=password,
+                                              service=kerberos_service_name,
+                                              mechanism=sasl_auth)
+
                 self._transport = thrift_sasl.TSaslClientTransport(sasl_factory, sasl_auth, socket)
             else:
                 # All HS2 config options:
@@ -334,11 +344,19 @@ class Cursor(common.DBAPICursor):
         """Close the operation handle"""
         self._reset_state()
 
-    def execute(self, operation, parameters=None, async=False):
+    def execute(self, operation, parameters=None, **kwargs):
         """Prepare and execute a database operation (query or command).
 
         Return values are not defined.
         """
+        # backward compatibility with Python < 3.7
+        for kw in ['async', 'async_']:
+            if kw in kwargs:
+                async_ = kwargs[kw]
+                break
+        else:
+            async_ = False
+
         # Prepare statement
         if parameters is None:
             sql = operation
@@ -351,7 +369,7 @@ class Cursor(common.DBAPICursor):
         _logger.info('%s', sql)
 
         req = ttypes.TExecuteStatementReq(self._connection.sessionHandle,
-                                          sql, runAsync=async)
+                                          sql, runAsync=async_)
         _logger.debug(req)
         response = self._connection.client.ExecuteStatement(req)
         _check_status(response)

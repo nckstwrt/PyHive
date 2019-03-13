@@ -8,6 +8,7 @@ from __future__ import unicode_literals
 from builtins import bytes
 from builtins import int
 from builtins import object
+from builtins import range
 from builtins import str
 from past.builtins import basestring
 from pyhive import exc

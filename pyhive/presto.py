@@ -13,6 +13,7 @@ from pyhive import common
 from pyhive.common import DBAPITypeObject
 # Make all exceptions visible in this module per DB-API
 from pyhive.exc import *  # noqa
+import re
 import base64
 import getpass
 import logging

@@ -243,6 +243,11 @@ class HiveDialect(default.DefaultDialect):
     returns_unicode_strings = True
     description_encoding = None
     supports_multivalues_insert = True
+    dbapi_type_map = {
+        'DATE_TYPE': HiveDate(),
+        'TIMESTAMP_TYPE': HiveTimestamp(),
+        'DECIMAL_TYPE': HiveDecimal(),
+    }
     type_compiler = HiveTypeCompiler
 
     @classmethod
