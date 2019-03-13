@@ -10,6 +10,27 @@ PyHive is a collection of Python `DB-API <http://www.python.org/dev/peps/pep-024
 `SQLAlchemy <http://www.sqlalchemy.org/>`_ interfaces for `Presto <http://prestodb.io/>`_ and
 `Hive <http://hive.apache.org/>`_.
 
+PyHive Changes For easy PureSasl and Windows Use
+================================================
+
+This is a patched version of Dropbox's PyHive based on devinstevenson's fork. This allows easy Python access of Hive2 on Windows using puresasl. 
+
+To install:
+
+- pip install git+git://github.com/nckstwrt/PyHive (or click clone to download as a zip and then "pip install pyhive-master.zip")
+- pip install pure-sasl
+- pip install thrift
+- pip install thrift_sasl
+
+Try it with:
+
+.. code-block:: python
+
+    from pyhive import hive
+    cursor = hive.connect(host='server', username='username', port=10000).cursor()
+    cursor.execute("select * from sometable")
+    print(cursor.fetchone())
+    
 Usage
 =====
 
